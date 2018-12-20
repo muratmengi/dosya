@@ -1,0 +1,280 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using AForge.Video;
+using AForge.Video.DirectShow;
+using AForge.Imaging;
+using AForge.Imaging.Filters;
+using System.IO.Ports;
+
+namespace WindowsFormsApp2
+{
+    
+    public partial class Form1 : Form
+       
+    {
+        public Form1()
+        {
+            CheckForIllegalCrossThreadCalls = false;
+            InitializeComponent();
+            
+            
+        }
+        private FilterInfoCollection webcam;
+        private VideoCaptureDevice cam;
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            webcam = new FilterInfoCollection(FilterCategory.VideoInputDevice);//webcam dizisine mevcut kameraları dolduruyoruz.
+            foreach (FilterInfo videocapturedevice in webcam)
+            {
+                comboBox1.Items.Add(videocapturedevice.Name);//kameraları combobox a dolduruyoruz.
+            }
+            comboBox1.SelectedIndex = 0;
+
+            {
+                portCombo.DataSource = SerialPort.GetPortNames();
+                toolStripLabel1.Text = "";
+                portKes.Enabled = false;
+
+                int portSayisi = 0;
+                portSayisi = portCombo.Items.Count;
+                if (portSayisi < 1)
+                {
+                    portBagla.Enabled = false;
+                    toolStripLabel1.Text = "Aygıt bulunamadı. Bağlantıyı kontrol et!!";
+                }
+            }
+        }
+
+
+        private void Cam_NewFrame(object sender, NewFrameEventArgs eventArgs)
+        {
+
+            Bitmap image = (Bitmap)eventArgs.Frame.Clone();
+            kaynak1.Image = image;   // kamera verisini pictureboxa taşıyor
+            Bitmap image2 = (Bitmap)eventArgs.Frame.Clone();
+
+
+            // create filter
+            EuclideanColorFiltering filter = new EuclideanColorFiltering();
+            // set center colol and radius
+            filter.CenterColor = new RGB(230, 0, 0);
+            filter.Radius = 100;
+
+
+            // apply the filter
+            filter.ApplyInPlace(image2);
+            // kamera verisini pictureboxa2 taşıyor
+
+
+            BlobCounter bc = new BlobCounter();
+            bc.FilterBlobs = true;
+            bc.MinWidth = 2;
+            bc.MinHeight = 2;
+            bc.ProcessImage(image2);
+            pictureBox2.Image = image2;
+
+            Rectangle[] rects = bc.GetObjectsRectangles();
+            int x = 0;
+            int y = 0;
+
+            foreach (Rectangle rect in rects)
+            { listBox1.Items.Add(rect.Location);
+                x = rect.X;
+                y = rect.Y;
+            }
+            //int x=20; int y=20;
+            //int x = rectangleObj.X;
+            //int y = rectangleObj.Y;
+
+            //listBox1.Items.Add(rec)
+            textBox1.Text = x.ToString();
+            textBox2.Text = y.ToString();
+
+            if (rects.Length > 0)
+            {
+
+                if (x > 0 & x < 400 & y < 220 & y > 0)
+                {
+                    solust.BackColor = Color.Green;
+
+                    serialPort1.Write("X");
+                }
+                else solust.BackColor = Color.Transparent;
+
+                
+
+
+                if (x > 0 & x < 400 & y > 200 & y < 440)
+                {
+                    sol.BackColor = Color.Green;
+
+                    serialPort1.WriteLine("Y");
+                }
+                else sol.BackColor = Color.Transparent;
+
+                
+
+                if (x > 0 & x < 400 & y > 410 & y < 670)
+                {
+                    solalt.BackColor = Color.Green;
+
+                    serialPort1.WriteLine("Z");
+                }
+                else solalt.BackColor = Color.Transparent;
+
+                if (x > 400 & x < 800 & y < 275 & y > 0)
+                {
+                    ust.BackColor = Color.Green;
+					serialPort1.WriteLine("V");
+
+				}
+                else ust.BackColor = Color.Transparent;
+
+                if (x > 400 & x < 800 & y < 410 & y > 270)
+                {
+                    orta.BackColor = Color.Green;
+					serialPort1.WriteLine("T");
+				}
+                else orta.BackColor = Color.Transparent;
+
+                if (x > 400 & x < 800 & y < 670 & y > 440)
+                {
+                    alt.BackColor = Color.Green;
+					serialPort1.WriteLine("A");
+				}
+               else alt.BackColor = Color.Transparent;
+
+                if (x > 800 & x < 1200 & y < 220 & y > 0)
+                {
+                    sagust.BackColor = Color.Green;
+					serialPort1.WriteLine("U");
+				}
+                else sagust.BackColor = Color.Transparent;
+
+                if (x > 800 & x < 1200 & y < 420 & y > 220)
+                {
+                    sag.BackColor = Color.Green;
+					serialPort1.WriteLine("F");
+				}
+               else sag.BackColor = Color.Transparent;
+
+                if (x > 800 & x < 1200 & y < 670 & y > 420)
+                {
+                    sagalt.BackColor = Color.Green;
+					serialPort1.WriteLine("S");
+				}
+                else sagalt.BackColor = Color.Transparent;
+            }
+
+
+
+        }
+       
+        private void AçToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            cam = new VideoCaptureDevice(webcam[comboBox1.SelectedIndex].MonikerString);
+            cam.NewFrame += new NewFrameEventHandler(Cam_NewFrame);
+            cam.Start();
+        }
+
+        private void KapatToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            cam.Stop();
+        }
+
+        private void Foto_cek_Click(object sender, EventArgs e)
+        {
+            pictureBox3.Image = kaynak1.Image;
+        }
+
+        private void Kaydet_Click(object sender, EventArgs e)
+        {
+            SaveFileDialog saveFileDialog = new SaveFileDialog
+            {
+                Title = @"Save Your Photo"
+            };
+            if (saveFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                pictureBox2.Image.Save(saveFileDialog.FileName + ".jpg", System.Drawing.Imaging.ImageFormat.Png);
+            }
+        }
+
+        private void İslemYap_Click(object sender, EventArgs e)
+        {
+            listBox1.Items.Add("omer");
+        }
+
+        private void PictureBox2_Click(object sender, EventArgs e)
+        {
+            
+        }
+
+        private void Kaynak1_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void PictureBox3_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void kaynak1_Click_1(object sender, EventArgs e)
+        {
+
+        }
+
+        private void portBagla_Click(object sender, EventArgs e)
+        {
+            serialPort1.BaudRate = 9600;
+            serialPort1.PortName = portCombo.SelectedItem.ToString();
+            serialPort1.Open();
+            if (serialPort1.IsOpen == true)
+            {
+                toolStripLabel1.Text = serialPort1.PortName + " portuna bağlandı.";
+                portKes.Enabled = true;
+                portBagla.Enabled = false;
+
+            }
+            else
+            {
+                toolStripLabel1.Text = "Porta bağlamadı. Kontrol et!!";
+            }
+        }
+
+        private void portKes_Click(object sender, EventArgs e)
+        {
+            serialPort1.Close();
+            toolStripLabel1.Text = "Bağlantı Kesildi";
+            portKes.Enabled = false;
+            portBagla.Enabled = true;
+        }
+
+        private void comboBox1_SelectedIndexChanged(object sender, EventArgs e)
+        {
+
+        }
+
+		private void portCombo_SelectedIndexChanged(object sender, EventArgs e)
+		{
+
+		}
+
+		private void textBox1_TextChanged(object sender, EventArgs e)
+		{
+
+		}
+
+		private void textBox2_TextChanged(object sender, EventArgs e)
+		{
+
+		}
+	}
+}
